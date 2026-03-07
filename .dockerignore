@@ -1,0 +1,13 @@
+.env
+
+.idea/
+.mvn/wrapper/maven-wrapper.jar
+**/src/main/**/target/
+**/src/test/**/target/
+
+.git/
+./.gitignore
+
+Dockerfile
+.dockerignore
+docker-compose*.yaml
