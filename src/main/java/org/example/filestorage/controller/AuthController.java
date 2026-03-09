@@ -1,8 +1,9 @@
 package org.example.filestorage.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.example.filestorage.model.dto.LoginRequest;
-import org.example.filestorage.model.dto.RegisterRequest;
+import org.example.filestorage.model.dto.request.LoginRequest;
+import org.example.filestorage.model.dto.request.RegisterRequest;
+import org.example.filestorage.model.dto.response.SuccessAuthResponse;
 import org.example.filestorage.service.AuthService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,15 +20,17 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/sign-up")
-    public ResponseEntity<Void> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new SuccessAuthResponse(request.username()));
     }
 
     @PostMapping("/sign-in")
-    public ResponseEntity<Void> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         authService.login(request);
-        return ResponseEntity.status(HttpStatus.OK).build();
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(new SuccessAuthResponse(request.username()));
     }
 
 }

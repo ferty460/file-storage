@@ -2,8 +2,8 @@ package org.example.filestorage.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.filestorage.model.User;
-import org.example.filestorage.model.dto.LoginRequest;
-import org.example.filestorage.model.dto.RegisterRequest;
+import org.example.filestorage.model.dto.request.LoginRequest;
+import org.example.filestorage.model.dto.request.RegisterRequest;
 import org.example.filestorage.repository.UserRepository;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
