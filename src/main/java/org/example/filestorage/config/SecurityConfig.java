@@ -47,9 +47,15 @@ public class SecurityConfig {
                 .userDetailsService(userDetailsService)
                 .logout(logout -> logout
                         .logoutUrl("/api/auth/sign-out")
-                        .logoutSuccessHandler((req, res, auth) -> res
-                                .setStatus(HttpStatus.OK.value())
-                        )
+                        .logoutSuccessHandler((req, res, auth) -> {
+                            if (auth != null) {
+                                res.setStatus(HttpStatus.NO_CONTENT.value());
+                            } else {
+                                res.setStatus(HttpStatus.UNAUTHORIZED.value());
+                                res.setContentType("application/json");
+                                res.getWriter().write("{\"message\":\"Unauthorized\"}");
+                            }
+                        })
                 );
 
         return httpSecurity.build();
