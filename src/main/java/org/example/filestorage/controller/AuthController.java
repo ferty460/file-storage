@@ -1,8 +1,8 @@
 package org.example.filestorage.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.example.filestorage.model.dto.request.LoginRequest;
-import org.example.filestorage.model.dto.request.RegisterRequest;
+import org.example.filestorage.model.dto.request.AuthRequest;
 import org.example.filestorage.model.dto.response.SuccessAuthResponse;
 import org.example.filestorage.service.AuthService;
 import org.springframework.http.HttpStatus;
@@ -20,16 +20,18 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/sign-up")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<?> register(@Valid @RequestBody AuthRequest request) {
         authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
                 .body(new SuccessAuthResponse(request.username()));
     }
 
     @PostMapping("/sign-in")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request) {
         authService.login(request);
-        return ResponseEntity.status(HttpStatus.OK)
+        return ResponseEntity
+                .status(HttpStatus.OK)
                 .body(new SuccessAuthResponse(request.username()));
     }
 
