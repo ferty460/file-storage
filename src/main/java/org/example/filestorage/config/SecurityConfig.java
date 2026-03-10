@@ -37,25 +37,22 @@ public class SecurityConfig {
         httpSecurity
                 .cors(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .userDetailsService(userDetailsService)
-                .logout(logout -> logout
-                        .logoutUrl("/api/auth/sign-out")
-                        .logoutSuccessHandler((req, res, auth) -> {
-                            if (auth != null) {
-                                res.setStatus(HttpStatus.NO_CONTENT.value());
-                            } else {
-                                res.setStatus(HttpStatus.UNAUTHORIZED.value());
-                                res.setContentType("application/json");
-                                res.getWriter().write("{\"message\":\"Unauthorized\"}");
-                            }
-                        })
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                )
+                .securityContext(securityContext -> securityContext
+                        .requireExplicitSave(false)
+                )
+                .logout(AbstractHttpConfigurer::disable)
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((req, res, e) ->
+                                res.sendError(HttpStatus.UNAUTHORIZED.value())
+                        )
                 );
 
         return httpSecurity.build();

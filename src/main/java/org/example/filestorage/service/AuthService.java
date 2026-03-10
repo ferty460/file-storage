@@ -1,5 +1,9 @@
 package org.example.filestorage.service;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.example.filestorage.exception.InvalidCredentialsException;
 import org.example.filestorage.exception.UserAlreadyExistsException;
@@ -32,6 +36,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.password()));
 
         userRepository.save(user);
+        login(request);
     }
 
     public void login(AuthRequest request) {
@@ -39,10 +44,24 @@ public class AuthService {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.username(), request.password())
             );
+
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (BadCredentialsException e) {
             throw new InvalidCredentialsException("Wrong username or password");
         }
+    }
+
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        SecurityContextHolder.clearContext();
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+
+        Cookie cookie = new Cookie("JSESSIONID", null);
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
     }
 
 }
