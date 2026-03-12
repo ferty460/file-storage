@@ -1,5 +1,6 @@
 package org.example.filestorage.controller;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -26,6 +27,8 @@ public class AuthController {
     @PostMapping("/sign-up")
     public ResponseEntity<?> register(@Valid @RequestBody AuthRequest request) {
         authService.register(request);
+        authService.login(request);
+
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(new SuccessAuthResponse(request.username()));
@@ -34,6 +37,7 @@ public class AuthController {
     @PostMapping("/sign-in")
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request) {
         authService.login(request);
+
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(new SuccessAuthResponse(request.username()));
@@ -51,9 +55,18 @@ public class AuthController {
                     .body(new ErrorResponse("User is not authenticated"));
         }
 
-        authService.logout(request, response);
+        authService.logout();
+        clearSessionWithCookie(request, response);
 
         return ResponseEntity.noContent().build();
+    }
+
+    private void clearSessionWithCookie(HttpServletRequest request, HttpServletResponse response) {
+        request.getSession().invalidate();
+        Cookie cookie = new Cookie("JSESSIONID", null);
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
     }
 
 }
