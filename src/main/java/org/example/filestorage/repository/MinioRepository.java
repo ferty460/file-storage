@@ -7,8 +7,10 @@ import lombok.RequiredArgsConstructor;
 import org.example.filestorage.exception.MinioOperationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,6 +37,19 @@ public class MinioRepository {
             throw new MinioOperationException("Failed to check resource existence");
         } catch (Exception e) {
             throw new MinioOperationException("Failed to check resource existence");
+        }
+    }
+
+    public void upload(String path, MultipartFile file) {
+        try (InputStream inputStream = file.getInputStream()) {
+            minioClient.putObject(PutObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(path)
+                    .stream(inputStream, file.getSize(), -1)
+                    .contentType(file.getContentType())
+                    .build());
+        } catch (Exception e) {
+            throw new MinioOperationException("Failed to upload file: " + path);
         }
     }
 

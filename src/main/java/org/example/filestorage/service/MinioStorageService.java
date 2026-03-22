@@ -2,6 +2,7 @@ package org.example.filestorage.service;
 
 import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
+import org.example.filestorage.exception.InvalidResourceException;
 import org.example.filestorage.exception.ResourceAlreadyExistsException;
 import org.example.filestorage.exception.ResourceNotFoundException;
 import org.example.filestorage.mapper.ResourceMapper;
@@ -12,8 +13,9 @@ import org.example.filestorage.validator.ResourceValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +48,35 @@ public class MinioStorageService implements StorageService {
 
     @Override
     public List<Resource> uploadResource(String path, List<MultipartFile> files, Long userId) {
-        return Collections.emptyList();
+        validator.validatePathLogic(path);
+
+        String folderPath = pathService.ensureTrailingSlash(path);
+        String fullFolderPath = pathService.normalizePathForUser(folderPath, userId);
+
+        if (files == null || files.isEmpty()) {
+            throw new InvalidResourceException("No files provided for upload");
+        }
+
+        List<Resource> resources = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            validator.validateFile(file);
+
+            String fileName = Objects.requireNonNull(file.getOriginalFilename()).trim();
+            String fullPath = fullFolderPath + fileName;
+
+            if (minioRepository.exists(fullPath)) {
+                throw new ResourceAlreadyExistsException(
+                        String.format("File already exists: %s%s", folderPath, fileName)
+                );
+            }
+
+            minioRepository.upload(fullPath, file);
+
+            resources.add(new Resource(folderPath, fileName, file.getSize(), ResourceType.FILE));
+        }
+
+        return resources;
     }
 
     @Override
