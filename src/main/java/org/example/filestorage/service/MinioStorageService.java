@@ -1,9 +1,8 @@
 package org.example.filestorage.service;
 
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import io.minio.StatObjectArgs;
+import io.minio.*;
 import io.minio.errors.ErrorResponseException;
+import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import org.example.filestorage.exception.InvalidResourceException;
 import org.example.filestorage.exception.ResourceAlreadyExistsException;
@@ -15,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -62,7 +62,15 @@ public class MinioStorageService implements StorageService {
         String directoryName = pathService.extractResourceName(pathWithSlash);
         String parentPath = pathService.extractParentPath(pathWithSlash);
 
-        validateBusinessRules(path, userId, fullPath, parentPath);
+        if (resourceExists(fullPath)) {
+            throw new ResourceAlreadyExistsException("Directory already exists: " + path);
+        }
+        if (!parentPath.isEmpty() && !parentPath.equals("/")) {
+            String fullParentPath = pathService.normalizePathForUser(parentPath, userId);
+            if (!resourceExists(fullParentPath)) {
+                throw new ResourceNotFoundException("Parent directory does not exist: " + parentPath);
+            }
+        }
 
         try {
             minioClient.putObject(PutObjectArgs.builder()
@@ -75,6 +83,44 @@ public class MinioStorageService implements StorageService {
         }
 
         return new Resource(parentPath, directoryName, null, ResourceType.DIRECTORY);
+    }
+
+    @Override
+    public List<Resource> getDirectoryContent(String path, Long userId) {
+        validateInputParameters(path);
+
+        String pathWithSlash = pathService.ensureTrailingSlash(path);
+        String fullPath = pathService.normalizePathForUser(pathWithSlash, userId);
+
+        if (!resourceExists(fullPath)) {
+            throw new ResourceNotFoundException("Directory does not exist: " + path);
+        }
+
+        List<Resource> resources = new ArrayList<>();
+
+        try {
+            Iterable<Result<Item>> results = minioClient.listObjects(ListObjectsArgs.builder()
+                    .bucket(bucketName)
+                    .prefix(fullPath)
+                    .recursive(false)
+                    .build());
+
+            for (var result : results) {
+                Item item = result.get();
+                String objectPath = item.objectName();
+
+                if (objectPath.equals(fullPath)) {
+                    continue;
+                }
+
+                Resource resource = mapItemToResource(objectPath, userId);
+                resources.add(resource);
+            }
+
+            return resources;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to read directory contents", e);
+        }
     }
 
     private void validateInputParameters(String path) {
@@ -96,18 +142,6 @@ public class MinioStorageService implements StorageService {
         }
     }
 
-    private void validateBusinessRules(String path, Long userId, String fullPath, String parentPath) {
-        if (resourceExists(fullPath)) {
-            throw new ResourceAlreadyExistsException("Directory already exists: " + path);
-        }
-        if (!parentPath.isEmpty() && !parentPath.equals("/")) {
-            String fullParentPath = pathService.normalizePathForUser(parentPath, userId);
-            if (!resourceExists(fullParentPath)) {
-                throw new ResourceNotFoundException("Parent directory does not exist: " + parentPath);
-            }
-        }
-    }
-
     private boolean resourceExists(String fullPath) {
         try {
             minioClient.statObject(StatObjectArgs.builder()
@@ -122,6 +156,40 @@ public class MinioStorageService implements StorageService {
             throw new RuntimeException("Failed to check resource existence", e);
         } catch (Exception e) {
             throw new RuntimeException("Failed to check resource existence", e);
+        }
+    }
+
+    private Resource mapItemToResource(String objectPath, Long userId) {
+        String userPrefix = pathService.getUserRootPath(userId);
+        String relativePath = objectPath.substring(userPrefix.length());
+
+        boolean isDirectory = pathService.isDirectoryPath(objectPath);
+
+        if (isDirectory) {
+            String folderName = pathService.extractResourceName(relativePath);
+            String parentPath = pathService.extractParentPath(relativePath);
+
+            return new Resource(parentPath, folderName, null, ResourceType.DIRECTORY);
+        } else {
+            String fileName = pathService.extractResourceName(relativePath);
+            String parentPath = pathService.extractParentPath(relativePath);
+            long size = getFileSize(objectPath);
+
+            return new Resource(parentPath, fileName, size, ResourceType.FILE);
+        }
+    }
+
+    private long getFileSize(String fullPath) {
+        try {
+            StatObjectResponse stat = minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(fullPath)
+                            .build()
+            );
+            return stat.size();
+        } catch (Exception e) {
+            return 0;
         }
     }
 

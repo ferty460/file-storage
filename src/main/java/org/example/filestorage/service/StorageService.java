@@ -21,4 +21,5 @@ public interface StorageService {
 
     Resource createDirectory(String path, Long userId);
 
+    List<Resource> getDirectoryContent(String path, Long userId);
 }
