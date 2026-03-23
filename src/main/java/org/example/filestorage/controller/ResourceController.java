@@ -21,6 +21,19 @@ public class ResourceController {
 
     private final StorageService storageService;
 
+    @GetMapping
+    public ResponseEntity<Resource> getResourceInfo(
+            @RequestParam("path") String path,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        User user = principal.user();
+        Resource resource = storageService.getResourceInfo(path, user.getId());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(resource);
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<Resource>> uploadFile(
             @RequestPart("file") List<MultipartFile> files,

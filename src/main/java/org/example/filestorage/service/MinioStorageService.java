@@ -28,7 +28,24 @@ public class MinioStorageService implements StorageService {
 
     @Override
     public Resource getResourceInfo(String path, Long userId) {
-        return null;
+        String decodedPath = pathService.decodePath(path);
+        validator.validatePath(decodedPath);
+
+        String fullPath = pathService.normalizePathForUser(decodedPath, userId);
+        String resourceName = pathService.extractResourceName(decodedPath);
+        String parentPath = pathService.extractParentPath(decodedPath);
+
+        if (!minioRepository.exists(fullPath)) {
+            throw new ResourceNotFoundException("Resource does not exist: " + decodedPath);
+        }
+
+        if (pathService.isDirectoryPath(decodedPath)) {
+            return new Resource(parentPath, resourceName, null, ResourceType.DIRECTORY);
+        }
+
+        long size = minioRepository.getFileSize(fullPath);
+
+        return new Resource(parentPath, resourceName, size, ResourceType.FILE);
     }
 
     @Override
@@ -48,14 +65,15 @@ public class MinioStorageService implements StorageService {
 
     @Override
     public List<Resource> uploadResource(String path, List<MultipartFile> files, Long userId) {
-        validator.validatePathLogic(path);
-
-        String folderPath = pathService.ensureTrailingSlash(path);
-        String fullFolderPath = pathService.normalizePathForUser(folderPath, userId);
+        String decodedPath = pathService.decodePath(path);
+        validator.validatePathLogic(decodedPath);
 
         if (files == null || files.isEmpty()) {
             throw new InvalidResourceException("No files provided for upload");
         }
+
+        String folderPath = pathService.ensureTrailingSlash(decodedPath);
+        String fullFolderPath = pathService.normalizePathForUser(folderPath, userId);
 
         List<Resource> resources = new ArrayList<>();
 
@@ -81,15 +99,16 @@ public class MinioStorageService implements StorageService {
 
     @Override
     public Resource createDirectory(String path, Long userId) {
-        validator.validatePath(path);
+        String decodedPath = pathService.decodePath(path);
+        validator.validatePath(decodedPath);
 
-        String pathWithSlash = pathService.ensureTrailingSlash(path);
+        String pathWithSlash = pathService.ensureTrailingSlash(decodedPath);
         String fullPath = pathService.normalizePathForUser(pathWithSlash, userId);
         String directoryName = pathService.extractResourceName(pathWithSlash);
         String parentPath = pathService.extractParentPath(pathWithSlash);
 
         if (minioRepository.exists(fullPath)) {
-            throw new ResourceAlreadyExistsException("Directory already exists: " + path);
+            throw new ResourceAlreadyExistsException("Directory already exists: " + decodedPath);
         }
         if (!parentPath.isEmpty() && !parentPath.equals("/")) {
             String fullParentPath = pathService.normalizePathForUser(parentPath, userId);
@@ -105,13 +124,14 @@ public class MinioStorageService implements StorageService {
 
     @Override
     public List<Resource> getDirectoryContent(String path, Long userId) {
-        validator.validatePath(path);
+        String decodedPath = pathService.decodePath(path);
+        validator.validatePath(decodedPath);
 
-        String pathWithSlash = pathService.ensureTrailingSlash(path);
+        String pathWithSlash = pathService.ensureTrailingSlash(decodedPath);
         String fullPath = pathService.normalizePathForUser(pathWithSlash, userId);
 
         if (!minioRepository.exists(fullPath)) {
-            throw new ResourceNotFoundException("Directory does not exist: " + path);
+            throw new ResourceNotFoundException("Directory does not exist: " + decodedPath);
         }
 
         List<Item> items = minioRepository.listObjects(fullPath, false);

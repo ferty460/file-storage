@@ -2,6 +2,9 @@ package org.example.filestorage.service;
 
 import org.springframework.stereotype.Service;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+
 @Service
 public class ResourcePathService {
 
@@ -53,6 +56,10 @@ public class ResourcePathService {
         }
 
         return path.endsWith("/") ? path : path + "/";
+    }
+
+    public String decodePath(String path) {
+        return URLDecoder.decode(path, StandardCharsets.UTF_8);
     }
 
 }
