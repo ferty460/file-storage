@@ -50,7 +50,23 @@ public class MinioStorageService implements StorageService {
 
     @Override
     public void deleteResource(String path, Long userId) {
+        String decodedPath = pathService.decodePath(path);
+        validator.validatePath(decodedPath);
 
+        String fullPath = pathService.normalizePathForUser(decodedPath, userId);
+
+        if (!minioRepository.exists(fullPath)) {
+            throw new ResourceNotFoundException("Resource does not exist: " + decodedPath);
+        }
+
+        List<Item> items = minioRepository.listObjects(fullPath, true);
+        if (!items.isEmpty()) {
+            for (Item item : items) {
+                minioRepository.removeObject(item.objectName());
+            }
+        }
+
+        minioRepository.removeObject(fullPath);
     }
 
     @Override

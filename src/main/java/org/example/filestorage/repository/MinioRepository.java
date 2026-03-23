@@ -40,6 +40,19 @@ public class MinioRepository {
         }
     }
 
+    public long getFileSize(String fullPath) {
+        try {
+            StatObjectResponse stat = minioClient.statObject(StatObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(fullPath)
+                    .build());
+
+            return stat.size();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     public void upload(String path, MultipartFile file) {
         try (InputStream inputStream = file.getInputStream()) {
             minioClient.putObject(PutObjectArgs.builder()
@@ -87,16 +100,14 @@ public class MinioRepository {
         }
     }
 
-    public long getFileSize(String fullPath) {
+    public void removeObject(String path) {
         try {
-            StatObjectResponse stat = minioClient.statObject(StatObjectArgs.builder()
+            minioClient.removeObject(RemoveObjectArgs.builder()
                     .bucket(bucketName)
-                    .object(fullPath)
+                    .object(path)
                     .build());
-
-            return stat.size();
         } catch (Exception e) {
-            return 0;
+            throw new MinioOperationException("Failed to delete object with path: " + path);
         }
     }
 
