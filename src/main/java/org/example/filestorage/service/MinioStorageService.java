@@ -6,16 +6,21 @@ import org.example.filestorage.exception.InvalidResourceException;
 import org.example.filestorage.exception.ResourceAlreadyExistsException;
 import org.example.filestorage.exception.ResourceNotFoundException;
 import org.example.filestorage.mapper.ResourceMapper;
+import org.example.filestorage.model.dto.DownloadResult;
 import org.example.filestorage.model.dto.Resource;
 import org.example.filestorage.model.dto.ResourceType;
 import org.example.filestorage.repository.MinioRepository;
 import org.example.filestorage.validator.ResourceValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
 @RequiredArgsConstructor
@@ -67,6 +72,54 @@ public class MinioStorageService implements StorageService {
         }
 
         minioRepository.removeObject(fullPath);
+    }
+
+    @Override
+    public DownloadResult downloadResource(String path, Long userId) {
+        String decodedPath = pathService.decodePath(path);
+        validator.fullValidatePath(decodedPath);
+
+        String fullPath = pathService.normalizePathForUser(decodedPath, userId);
+        if (!minioRepository.exists(fullPath)) {
+            throw new ResourceNotFoundException("Resource does not exist: " + decodedPath);
+        }
+
+        String resourceName = pathService.extractResourceName(decodedPath);
+        if (pathService.isDirectoryPath(decodedPath)) {
+            StreamingResponseBody stream = outputStream -> {
+                try (ZipOutputStream zipOut = new ZipOutputStream(outputStream)) {
+                    List<Item> items = minioRepository.listObjects(fullPath, true);
+
+                    for (Item item : items) {
+                        String objectName = item.objectName();
+                        String relativePath = objectName.substring(fullPath.length());
+
+                        if (relativePath.isEmpty()) continue;
+
+                        ZipEntry zipEntry = new ZipEntry(relativePath);
+                        zipOut.putNextEntry(zipEntry);
+
+                        try (InputStream is = minioRepository.getObject(objectName)) {
+                            is.transferTo(zipOut);
+                        }
+
+                        zipOut.closeEntry();
+                    }
+
+                    zipOut.finish();
+                }
+            };
+
+            return new DownloadResult(resourceName + ".zip", stream);
+        } else {
+            StreamingResponseBody stream = outputStream -> {
+                try (InputStream is = minioRepository.getObject(fullPath)) {
+                    is.transferTo(outputStream);
+                }
+            };
+
+            return new DownloadResult(resourceName, stream);
+        }
     }
 
     @Override

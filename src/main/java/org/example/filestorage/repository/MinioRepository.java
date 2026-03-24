@@ -23,6 +23,17 @@ public class MinioRepository {
     @Value("${minio.bucket-name}")
     private String bucketName;
 
+    public InputStream getObject(String path) {
+        try {
+            return minioClient.getObject(GetObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(path)
+                    .build());
+        } catch (Exception e) {
+            throw new MinioOperationException("Failed to get object by path: " + path);
+        }
+    }
+
     public boolean exists(String fullPath) {
         try {
             minioClient.statObject(StatObjectArgs.builder()
@@ -31,10 +42,30 @@ public class MinioRepository {
                     .build());
             return true;
         } catch (ErrorResponseException e) {
-            if (e.errorResponse().code().equals("NoSuchKey")) {
-                return false;
+            if (!e.errorResponse().code().equals("NoSuchKey")) {
+                throw new MinioOperationException("Failed to check resource existence");
             }
-            throw new MinioOperationException("Failed to check resource existence");
+
+            String dirPath = fullPath.endsWith("/") ? fullPath : fullPath + "/";
+            Iterable<Result<Item>> results = minioClient.listObjects(ListObjectsArgs.builder()
+                    .bucket(bucketName)
+                    .prefix(dirPath)
+                    .recursive(false)
+                    .maxKeys(1)
+                    .build());
+
+            for (Result<Item> result : results) {
+                try {
+                    String objectName = result.get().objectName();
+                    if (objectName.startsWith(dirPath)) {
+                        return true;
+                    }
+                } catch (Exception ex) {
+                    throw new MinioOperationException("Error reading object");
+                }
+            }
+
+            return false;
         } catch (Exception e) {
             throw new MinioOperationException("Failed to check resource existence");
         }

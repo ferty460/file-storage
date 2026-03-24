@@ -3,14 +3,17 @@ package org.example.filestorage.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.filestorage.model.User;
 import org.example.filestorage.model.UserPrincipal;
+import org.example.filestorage.model.dto.DownloadResult;
 import org.example.filestorage.model.dto.Resource;
 import org.example.filestorage.service.StorageService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.List;
 
@@ -59,6 +62,21 @@ public class ResourceController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(resources);
+    }
+
+    @GetMapping("/download")
+    public ResponseEntity<StreamingResponseBody> download(
+            @RequestParam("path") String path,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        User user = principal.user();
+        DownloadResult result = storageService.downloadResource(path, user.getId());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + result.resourceName() + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(result.body());
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
