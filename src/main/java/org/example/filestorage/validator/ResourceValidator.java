@@ -1,15 +1,24 @@
 package org.example.filestorage.validator;
 
+import lombok.RequiredArgsConstructor;
 import org.example.filestorage.exception.InvalidResourceException;
+import org.example.filestorage.exception.ResourceAlreadyExistsException;
+import org.example.filestorage.exception.ResourceNotFoundException;
+import org.example.filestorage.repository.MinioRepository;
+import org.example.filestorage.service.ResourcePathService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 @Component
+@RequiredArgsConstructor
 public class ResourceValidator {
 
     private static final int MAX_PATH_LENGTH = 1024;
     private static final long MAX_FILE_SIZE = 100 * 1024 * 1024;
     private static final String ALLOWED_PATH_REGEX = "^[a-zA-Zа-яА-Я0-9\\s/\\-_.]+$";
+
+    private final MinioRepository minioRepository;
+    private final ResourcePathService pathService;
 
     public void validatePath(String path) {
         if (path == null || path.isBlank()) {
@@ -34,6 +43,25 @@ public class ResourceValidator {
             throw new InvalidResourceException(
                     String.format("Path is too long (max %d characters)", MAX_PATH_LENGTH)
             );
+        }
+    }
+
+    public void validateMove(String fullFrom, String fullTo, String userFrom, String userTo) {
+        if (!minioRepository.exists(fullFrom)) {
+            throw new ResourceNotFoundException("Source does not exist: " + userFrom);
+        }
+        if (minioRepository.exists(fullTo)) {
+            throw new ResourceAlreadyExistsException("Target already exists: " + userTo);
+        }
+
+        boolean fromDir = pathService.isDirectoryPath(fullFrom);
+        boolean toDir = pathService.isDirectoryPath(fullTo);
+
+        if (fromDir && !toDir) {
+            throw new InvalidResourceException("Cannot move directory to file path");
+        }
+        if (!fromDir && toDir) {
+            throw new InvalidResourceException("Cannot move file to directory path");
         }
     }
 

@@ -71,7 +71,39 @@ public class MinioStorageService implements StorageService {
 
     @Override
     public Resource moveResource(String from, String to, Long userId) {
-        return null;
+        String decodedFrom = pathService.decodePath(from);
+        String decodedTo = pathService.decodePath(to);
+        validator.validatePath(decodedFrom);
+        validator.validatePath(decodedTo);
+
+        String fullFrom = pathService.normalizePathForUser(decodedFrom, userId);
+        String fullTo = pathService.normalizePathForUser(decodedTo, userId);
+        String targetPath = pathService.extractParentPath(to);
+        String targetName = pathService.extractResourceName(to);
+
+        validator.validateMove(fullFrom, fullTo, decodedFrom, decodedTo);
+
+        if (pathService.isDirectoryPath(decodedFrom)) {
+            List<Item> items = minioRepository.listObjects(fullFrom, true);
+
+            if (!items.isEmpty()) {
+                for (Item item : items) {
+                    String resource = item.objectName();
+                    String relativePath = resource.substring(fullFrom.length());
+                    String newPath = fullTo + relativePath;
+
+                    minioRepository.copyObject(resource, newPath);
+                    minioRepository.removeObject(resource);
+                }
+            }
+
+            return new Resource(targetPath, targetName, null, ResourceType.DIRECTORY);
+        }
+
+        minioRepository.copyObject(fullFrom, fullTo);
+        minioRepository.removeObject(fullFrom);
+
+        return new Resource(targetPath, targetName, minioRepository.getFileSize(fullTo), ResourceType.FILE);
     }
 
     @Override

@@ -53,6 +53,28 @@ public class MinioRepository {
         }
     }
 
+    public List<Item> listObjects(String prefix, boolean recursive) {
+        try {
+            List<Item> items = new ArrayList<>();
+
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(bucketName)
+                            .prefix(prefix)
+                            .recursive(recursive)
+                            .build()
+            );
+
+            for (Result<Item> result : results) {
+                items.add(result.get());
+            }
+
+            return items;
+        } catch (Exception e) {
+            throw new MinioOperationException("Failed to list objects with prefix: " + prefix);
+        }
+    }
+
     public void upload(String path, MultipartFile file) {
         try (InputStream inputStream = file.getInputStream()) {
             minioClient.putObject(PutObjectArgs.builder()
@@ -78,25 +100,18 @@ public class MinioRepository {
         }
     }
 
-    public List<Item> listObjects(String prefix, boolean recursive) {
+    public void copyObject(String from, String to) {
         try {
-            List<Item> items = new ArrayList<>();
-
-            Iterable<Result<Item>> results = minioClient.listObjects(
-                    ListObjectsArgs.builder()
+            minioClient.copyObject(CopyObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(to)
+                    .source(CopySource.builder()
                             .bucket(bucketName)
-                            .prefix(prefix)
-                            .recursive(recursive)
-                            .build()
-            );
-
-            for (Result<Item> result : results) {
-                items.add(result.get());
-            }
-
-            return items;
+                            .object(from)
+                            .build())
+                    .build());
         } catch (Exception e) {
-            throw new MinioOperationException("Failed to list objects with prefix: " + prefix);
+            throw new MinioOperationException("Failed to copy resource: from " + from + " to " + to);
         }
     }
 

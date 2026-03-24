@@ -34,6 +34,20 @@ public class ResourceController {
                 .body(resource);
     }
 
+    @GetMapping("/move")
+    public ResponseEntity<Resource> moveOrRename(
+            @RequestParam("from") String from,
+            @RequestParam("to") String to,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        User user = principal.user();
+        Resource resource = storageService.moveResource(from, to, user.getId());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(resource);
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<Resource>> upload(
             @RequestParam("file") List<MultipartFile> files,
