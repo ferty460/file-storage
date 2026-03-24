@@ -20,7 +20,7 @@ public class ResourceValidator {
     private final MinioRepository minioRepository;
     private final ResourcePathService pathService;
 
-    public void validatePath(String path) {
+    public void fullValidatePath(String path) {
         if (path == null || path.isBlank()) {
             throw new InvalidResourceException("Path cannot be null or empty");
         }
@@ -31,10 +31,10 @@ public class ResourceValidator {
             );
         }
 
-        validatePathLogic(path);
+        partialValidatePath(path);
     }
 
-    public void validatePathLogic(String path) {
+    public void partialValidatePath(String path) {
         if (path.contains("..")) {
             throw new InvalidResourceException("Path cannot contain '..'");
         }
@@ -76,7 +76,7 @@ public class ResourceValidator {
         }
 
         if (fileName.contains("..")) {
-            throw new InvalidResourceException("Invalid file path");
+            throw new InvalidResourceException("Invalid file name");
         }
 
         if (file.getSize() > MAX_FILE_SIZE) {

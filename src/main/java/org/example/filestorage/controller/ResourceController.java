@@ -48,6 +48,19 @@ public class ResourceController {
                 .body(resource);
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<Resource>> search(
+            @RequestParam("query") String query,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        User user = principal.user();
+        List<Resource> resources = storageService.searchResource(query, user.getId());
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(resources);
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<Resource>> upload(
             @RequestParam("file") List<MultipartFile> files,

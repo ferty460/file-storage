@@ -15,7 +15,7 @@ public interface StorageService {
 
     Resource moveResource(String from, String to, Long userId);
 
-    Resource searchResource(String path, Long userId);
+    List<Resource> searchResource(String query, Long userId);
 
     List<Resource> uploadResource(String path, List<MultipartFile> files, Long userId);
 

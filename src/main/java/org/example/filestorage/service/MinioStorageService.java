@@ -29,7 +29,7 @@ public class MinioStorageService implements StorageService {
     @Override
     public Resource getResourceInfo(String path, Long userId) {
         String decodedPath = pathService.decodePath(path);
-        validator.validatePath(decodedPath);
+        validator.fullValidatePath(decodedPath);
 
         String fullPath = pathService.normalizePathForUser(decodedPath, userId);
         String resourceName = pathService.extractResourceName(decodedPath);
@@ -51,7 +51,7 @@ public class MinioStorageService implements StorageService {
     @Override
     public void deleteResource(String path, Long userId) {
         String decodedPath = pathService.decodePath(path);
-        validator.validatePath(decodedPath);
+        validator.fullValidatePath(decodedPath);
 
         String fullPath = pathService.normalizePathForUser(decodedPath, userId);
 
@@ -73,8 +73,8 @@ public class MinioStorageService implements StorageService {
     public Resource moveResource(String from, String to, Long userId) {
         String decodedFrom = pathService.decodePath(from);
         String decodedTo = pathService.decodePath(to);
-        validator.validatePath(decodedFrom);
-        validator.validatePath(decodedTo);
+        validator.fullValidatePath(decodedFrom);
+        validator.fullValidatePath(decodedTo);
 
         String fullFrom = pathService.normalizePathForUser(decodedFrom, userId);
         String fullTo = pathService.normalizePathForUser(decodedTo, userId);
@@ -107,14 +107,24 @@ public class MinioStorageService implements StorageService {
     }
 
     @Override
-    public Resource searchResource(String path, Long userId) {
-        return null;
+    public List<Resource> searchResource(String query, Long userId) {
+        String decodedPath = pathService.decodePath(query);
+        validator.fullValidatePath(decodedPath);
+
+        String fullPath = pathService.normalizePathForUser(decodedPath, userId);
+
+        List<Resource> resources = new ArrayList<>();
+        for (Item item : minioRepository.listObjects(fullPath, true)) {
+            resources.add(mapper.mapItemToResource(item, userId));
+        }
+
+        return resources;
     }
 
     @Override
     public List<Resource> uploadResource(String path, List<MultipartFile> files, Long userId) {
         String decodedPath = pathService.decodePath(path);
-        validator.validatePathLogic(decodedPath);
+        validator.partialValidatePath(decodedPath);
 
         if (files == null || files.isEmpty()) {
             throw new InvalidResourceException("No files provided for upload");
@@ -148,7 +158,7 @@ public class MinioStorageService implements StorageService {
     @Override
     public Resource createDirectory(String path, Long userId) {
         String decodedPath = pathService.decodePath(path);
-        validator.validatePath(decodedPath);
+        validator.fullValidatePath(decodedPath);
 
         String pathWithSlash = pathService.ensureTrailingSlash(decodedPath);
         String fullPath = pathService.normalizePathForUser(pathWithSlash, userId);
@@ -173,7 +183,7 @@ public class MinioStorageService implements StorageService {
     @Override
     public List<Resource> getDirectoryContent(String path, Long userId) {
         String decodedPath = pathService.decodePath(path);
-        validator.validatePath(decodedPath);
+        validator.fullValidatePath(decodedPath);
 
         String pathWithSlash = pathService.ensureTrailingSlash(decodedPath);
         String fullPath = pathService.normalizePathForUser(pathWithSlash, userId);
