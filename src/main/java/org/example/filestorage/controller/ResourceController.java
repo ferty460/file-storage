@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -72,9 +74,12 @@ public class ResourceController {
         User user = principal.user();
         DownloadResult result = storageService.downloadResource(path, user.getId());
 
+        String encodedFileName = URLEncoder.encode(result.resourceName(), StandardCharsets.UTF_8)
+                .replaceAll("\\+", "%20");
+
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + result.resourceName() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFileName + "\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(result.body());
     }
