@@ -2,7 +2,6 @@ package org.example.filestorage.validator;
 
 import lombok.RequiredArgsConstructor;
 import org.example.filestorage.exception.InvalidResourceException;
-import org.example.filestorage.exception.ResourceAlreadyExistsException;
 import org.example.filestorage.exception.ResourceNotFoundException;
 import org.example.filestorage.repository.MinioRepository;
 import org.example.filestorage.service.ResourcePathService;
@@ -46,13 +45,21 @@ public class ResourceValidator {
         }
     }
 
+    public void validateNotExistsInBucket(String fullPath, String originalPath) {
+        if (!minioRepository.exists(fullPath)) {
+            throw new ResourceNotFoundException("Resource does not exist: " + originalPath);
+        }
+    }
+
+    public void validateExistsInBucket(String fullPath, String originalPath) {
+        if (minioRepository.exists(fullPath)) {
+            throw new ResourceNotFoundException("Resource already exist: " + originalPath);
+        }
+    }
+
     public void validateMove(String fullFrom, String fullTo, String userFrom, String userTo) {
-        if (!minioRepository.exists(fullFrom)) {
-            throw new ResourceNotFoundException("Source does not exist: " + userFrom);
-        }
-        if (minioRepository.exists(fullTo)) {
-            throw new ResourceAlreadyExistsException("Target already exists: " + userTo);
-        }
+        validateNotExistsInBucket(fullFrom, userFrom);
+        validateExistsInBucket(fullTo, userTo);
 
         boolean fromDir = pathService.isDirectoryPath(fullFrom);
         boolean toDir = pathService.isDirectoryPath(fullTo);

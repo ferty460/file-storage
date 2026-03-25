@@ -3,8 +3,6 @@ package org.example.filestorage.service;
 import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import org.example.filestorage.exception.InvalidResourceException;
-import org.example.filestorage.exception.ResourceAlreadyExistsException;
-import org.example.filestorage.exception.ResourceNotFoundException;
 import org.example.filestorage.mapper.ResourceMapper;
 import org.example.filestorage.model.dto.DownloadResult;
 import org.example.filestorage.model.dto.Resource;
@@ -40,9 +38,7 @@ public class MinioStorageService implements StorageService {
         String resourceName = pathService.extractResourceName(decodedPath);
         String parentPath = pathService.extractParentPath(decodedPath);
 
-        if (!minioRepository.exists(fullPath)) {
-            throw new ResourceNotFoundException("Resource does not exist: " + decodedPath);
-        }
+        validator.validateNotExistsInBucket(fullPath, decodedPath);
 
         if (pathService.isDirectoryPath(decodedPath)) {
             return new Resource(parentPath, resourceName, null, ResourceType.DIRECTORY);
@@ -59,19 +55,9 @@ public class MinioStorageService implements StorageService {
         validator.fullValidatePath(decodedPath);
 
         String fullPath = pathService.normalizePathForUser(decodedPath, userId);
+        validator.validateNotExistsInBucket(fullPath, decodedPath);
 
-        if (!minioRepository.exists(fullPath)) {
-            throw new ResourceNotFoundException("Resource does not exist: " + decodedPath);
-        }
-
-        List<Item> items = minioRepository.listObjects(fullPath, true);
-        if (!items.isEmpty()) {
-            for (Item item : items) {
-                minioRepository.removeObject(item.objectName());
-            }
-        }
-
-        minioRepository.removeObject(fullPath);
+        deleteRecursively(fullPath);
     }
 
     @Override
@@ -80,46 +66,14 @@ public class MinioStorageService implements StorageService {
         validator.fullValidatePath(decodedPath);
 
         String fullPath = pathService.normalizePathForUser(decodedPath, userId);
-        if (!minioRepository.exists(fullPath)) {
-            throw new ResourceNotFoundException("Resource does not exist: " + decodedPath);
-        }
+        validator.validateNotExistsInBucket(fullPath, decodedPath);
 
         String resourceName = pathService.extractResourceName(decodedPath);
         if (pathService.isDirectoryPath(decodedPath)) {
-            StreamingResponseBody stream = outputStream -> {
-                try (ZipOutputStream zipOut = new ZipOutputStream(outputStream)) {
-                    List<Item> items = minioRepository.listObjects(fullPath, true);
-
-                    for (Item item : items) {
-                        String objectName = item.objectName();
-                        String relativePath = objectName.substring(fullPath.length());
-
-                        if (relativePath.isEmpty()) continue;
-
-                        ZipEntry zipEntry = new ZipEntry(relativePath);
-                        zipOut.putNextEntry(zipEntry);
-
-                        try (InputStream is = minioRepository.getObject(objectName)) {
-                            is.transferTo(zipOut);
-                        }
-
-                        zipOut.closeEntry();
-                    }
-
-                    zipOut.finish();
-                }
-            };
-
-            return new DownloadResult(resourceName + ".zip", stream);
-        } else {
-            StreamingResponseBody stream = outputStream -> {
-                try (InputStream is = minioRepository.getObject(fullPath)) {
-                    is.transferTo(outputStream);
-                }
-            };
-
-            return new DownloadResult(resourceName, stream);
+            return new DownloadResult(resourceName + ".zip", buildZipStream(fullPath));
         }
+
+        return new DownloadResult(resourceName, buildFileStream(fullPath));
     }
 
     @Override
@@ -137,18 +91,7 @@ public class MinioStorageService implements StorageService {
         validator.validateMove(fullFrom, fullTo, decodedFrom, decodedTo);
 
         if (pathService.isDirectoryPath(decodedFrom)) {
-            List<Item> items = minioRepository.listObjects(fullFrom, true);
-
-            if (!items.isEmpty()) {
-                for (Item item : items) {
-                    String resource = item.objectName();
-                    String relativePath = resource.substring(fullFrom.length());
-                    String newPath = fullTo + relativePath;
-
-                    minioRepository.copyObject(resource, newPath);
-                    minioRepository.removeObject(resource);
-                }
-            }
+            moveDirectory(fullFrom, fullTo);
 
             return new Resource(targetPath, targetName, null, ResourceType.DIRECTORY);
         }
@@ -194,11 +137,7 @@ public class MinioStorageService implements StorageService {
             String fileName = Objects.requireNonNull(file.getOriginalFilename()).trim();
             String fullPath = fullFolderPath + fileName;
 
-            if (minioRepository.exists(fullPath)) {
-                throw new ResourceAlreadyExistsException(
-                        String.format("File already exists: %s%s", folderPath, fileName)
-                );
-            }
+            validator.validateExistsInBucket(fullPath, folderPath + fileName);
 
             minioRepository.upload(fullPath, file);
 
@@ -218,14 +157,12 @@ public class MinioStorageService implements StorageService {
         String directoryName = pathService.extractResourceName(pathWithSlash);
         String parentPath = pathService.extractParentPath(pathWithSlash);
 
-        if (minioRepository.exists(fullPath)) {
-            throw new ResourceAlreadyExistsException("Directory already exists: " + decodedPath);
-        }
+        validator.validateExistsInBucket(fullPath, decodedPath);
+
         if (!parentPath.isEmpty() && !parentPath.equals("/")) {
             String fullParentPath = pathService.normalizePathForUser(parentPath, userId);
-            if (!minioRepository.exists(fullParentPath)) {
-                throw new ResourceNotFoundException("Parent directory does not exist: " + parentPath);
-            }
+
+            validator.validateNotExistsInBucket(fullParentPath, parentPath);
         }
 
         minioRepository.createDirectory(fullPath);
@@ -241,9 +178,7 @@ public class MinioStorageService implements StorageService {
         String pathWithSlash = pathService.ensureTrailingSlash(decodedPath);
         String fullPath = pathService.normalizePathForUser(pathWithSlash, userId);
 
-        if (!minioRepository.exists(fullPath)) {
-            throw new ResourceNotFoundException("Directory does not exist: " + decodedPath);
-        }
+        validator.validateNotExistsInBucket(fullPath, decodedPath);
 
         List<Item> items = minioRepository.listObjects(fullPath, false);
 
@@ -251,6 +186,63 @@ public class MinioStorageService implements StorageService {
                 .filter(item -> !item.objectName().equals(fullPath))
                 .map(item -> mapper.mapItemToResource(item, userId))
                 .toList();
+    }
+
+    private void deleteRecursively(String fullPath) {
+        List<Item> items = minioRepository.listObjects(fullPath, true);
+
+        for (Item item : items) {
+            minioRepository.removeObject(item.objectName());
+        }
+
+        minioRepository.removeObject(fullPath);
+    }
+
+    private StreamingResponseBody buildFileStream(String fullPath) {
+        return outputStream -> {
+            try (InputStream is = minioRepository.getObject(fullPath)) {
+                is.transferTo(outputStream);
+            }
+        };
+    }
+
+    private StreamingResponseBody buildZipStream(String fullPath) {
+        return outputStream -> {
+            try (ZipOutputStream zipOut = new ZipOutputStream(outputStream)) {
+                List<Item> items = minioRepository.listObjects(fullPath, true);
+
+                for (Item item : items) {
+                    String objectName = item.objectName();
+                    String relativePath = objectName.substring(fullPath.length());
+
+                    if (relativePath.isEmpty()) continue;
+
+                    ZipEntry zipEntry = new ZipEntry(relativePath);
+                    zipOut.putNextEntry(zipEntry);
+
+                    try (InputStream is = minioRepository.getObject(objectName)) {
+                        is.transferTo(zipOut);
+                    }
+
+                    zipOut.closeEntry();
+                }
+
+                zipOut.finish();
+            }
+        };
+    }
+
+    private void moveDirectory(String from, String to) {
+        List<Item> items = minioRepository.listObjects(from, true);
+
+        for (Item item : items) {
+            String objectName = item.objectName();
+            String relativePath = objectName.substring(from.length());
+            String newPath = to + relativePath;
+
+            minioRepository.copyObject(objectName, newPath);
+            minioRepository.removeObject(objectName);
+        }
     }
 
 }
