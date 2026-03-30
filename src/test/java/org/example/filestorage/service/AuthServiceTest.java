@@ -1,50 +1,84 @@
 package org.example.filestorage.service;
 
-import org.assertj.core.api.Assertions;
-import org.example.filestorage.AbstractIntegrationTest;
+import org.example.filestorage.config.SecurityTestConfig;
 import org.example.filestorage.exception.UserAlreadyExistsException;
+import org.example.filestorage.model.User;
 import org.example.filestorage.model.dto.request.AuthRequest;
 import org.example.filestorage.repository.UserRepository;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.Optional;
 
-public class AuthServiceTest extends AbstractIntegrationTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+@DataJpaTest
+@Testcontainers
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import(SecurityTestConfig.class)
+public class AuthServiceTest {
+
+    @Container
+    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16")
+            .withDatabaseName("testdb")
+            .withUsername("test")
+            .withPassword("test");
 
     @Autowired
-    AuthService authService;
+    private UserRepository userRepository;
 
     @Autowired
-    UserRepository userRepository;
+    private AuthService authService;
 
-    @BeforeEach
-    void clearTable() {
-        userRepository.deleteAll();
+    @MockitoBean
+    private AuthenticationManager authenticationManager;
+
+    @BeforeAll
+    static void init() {
+        postgres.start();
+        System.setProperty("spring.datasource.url", postgres.getJdbcUrl());
+        System.setProperty("spring.datasource.username", postgres.getUsername());
+        System.setProperty("spring.datasource.password", postgres.getPassword());
+        System.setProperty("spring.jpa.hibernate.ddl-auto", "create-drop");
     }
 
     @Test
-    void whenUserRegister_thenUserSavesInDb() {
-        AuthRequest request = new AuthRequest("Leo", "leopass123");
+    void register_ShouldCreateNewUserInDatabase() {
+        AuthRequest request = new AuthRequest("testuser", "password123");
 
         authService.register(request);
 
-        assertEquals(1, userRepository.count());
-        assertTrue(userRepository.existsByName("Leo"));
+        Optional<User> savedUser = userRepository.findByName("testuser");
+        assertThat(savedUser).isPresent();
+        assertThat(savedUser.get().getName()).isEqualTo("testuser");
+        assertThat(savedUser.get().getPassword()).isNotNull();
+        assertThat(savedUser.get().getId()).isNotNull();
     }
 
     @Test
-    void whenUserRegisterWithNonUniqueUsername_thenThrowsException() {
-        AuthRequest leoRequest = new AuthRequest("Leo", "leopass123");
-        authService.register(leoRequest);
+    void register_WithDuplicateUsername_ShouldThrowUserAlreadyExistsException() {
+        AuthRequest request = new AuthRequest("duplicateUser", "password123");
+        authService.register(request);
 
-        AuthRequest secLeoRequest = new AuthRequest("Leo", "secleopass123");
-
-        Assertions.assertThatThrownBy(() -> authService.register(secLeoRequest))
+        AuthRequest duplicateRequest = new AuthRequest("duplicateUser", "anotherPassword");
+        assertThatThrownBy(() -> authService.register(duplicateRequest))
                 .isInstanceOf(UserAlreadyExistsException.class)
-                .hasMessage("User with name '%s' already exists".formatted(secLeoRequest.username()));
+                .hasMessageContaining("User with name 'duplicateUser' already exists");
+
+        long count = userRepository.findAll().stream()
+                .filter(u -> u.getName().equals("duplicateUser"))
+                .count();
+        assertThat(count).isEqualTo(1);
     }
 
 }
