@@ -3,7 +3,6 @@ package org.example.filestorage.repository;
 import io.minio.*;
 import io.minio.errors.ErrorResponseException;
 import io.minio.messages.Item;
-import lombok.RequiredArgsConstructor;
 import org.example.filestorage.exception.MinioOperationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
@@ -15,13 +14,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Repository
-@RequiredArgsConstructor
 public class MinioRepository {
 
     private final MinioClient minioClient;
+    private final String bucketName;
 
-    @Value("${minio.bucket-name}")
-    private String bucketName;
+    public MinioRepository(MinioClient minioClient, @Value("${minio.bucket-name}") String bucketName) {
+        this.minioClient = minioClient;
+        this.bucketName = bucketName;
+    }
 
     public InputStream getObject(String path) {
         try {
