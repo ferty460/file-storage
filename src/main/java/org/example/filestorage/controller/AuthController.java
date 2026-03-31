@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.filestorage.model.dto.request.AuthRequest;
 import org.example.filestorage.model.dto.response.ErrorResponse;
 import org.example.filestorage.model.dto.response.SuccessAuthResponse;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
+@Slf4j
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -29,6 +31,7 @@ public class AuthController {
         authService.register(request);
         authService.login(request);
 
+        log.info("User registered and logged in: {}", request.username());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(new SuccessAuthResponse(request.username()));
@@ -38,6 +41,7 @@ public class AuthController {
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request) {
         authService.login(request);
 
+        log.info("User logged in: {}", request.username());
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(new SuccessAuthResponse(request.username()));
@@ -50,6 +54,7 @@ public class AuthController {
             Authentication authentication
     ) {
         if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("Logout attempted by unauthenticated user");
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse("User is not authenticated"));
@@ -58,6 +63,7 @@ public class AuthController {
         authService.logout();
         clearSessionWithCookie(request, response);
 
+        log.info("User logged out: {}", authentication.getName());
         return ResponseEntity.noContent().build();
     }
 

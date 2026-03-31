@@ -1,6 +1,7 @@
 package org.example.filestorage.controller;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.filestorage.model.UserPrincipal;
 import org.example.filestorage.model.dto.Resource;
 import org.example.filestorage.service.StorageService;
@@ -13,6 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/directory")
+@Slf4j
 @RequiredArgsConstructor
 public class DirectoryController {
 
@@ -24,6 +26,8 @@ public class DirectoryController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         List<Resource> content = storageService.getDirectoryContent(path, principal.user().getId());
+
+        log.debug("Retrieved directory content for path: {} by user: {}", path, principal.getUsername());
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(content);
@@ -35,6 +39,8 @@ public class DirectoryController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         Resource directory = storageService.createDirectory(path, principal.user().getId());
+
+        log.info("Created directory: {} by user: {}", path, principal.getUsername());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(directory);

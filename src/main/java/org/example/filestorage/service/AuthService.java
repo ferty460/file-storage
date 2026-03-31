@@ -1,6 +1,7 @@
 package org.example.filestorage.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.filestorage.exception.InvalidCredentialsException;
 import org.example.filestorage.exception.UserAlreadyExistsException;
 import org.example.filestorage.model.User;
@@ -15,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AuthService {
 
@@ -24,6 +26,7 @@ public class AuthService {
 
     public void register(AuthRequest request) {
         if (userRepository.existsByName(request.username())) {
+            log.warn("Registration failed - user already exists: {}", request.username());
             throw new UserAlreadyExistsException("User with name '%s' already exists".formatted(request.username()));
         }
 
@@ -32,6 +35,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.password()));
 
         userRepository.save(user);
+        log.info("User registered successfully: {}", request.username());
     }
 
     public void login(AuthRequest request) {
@@ -41,12 +45,15 @@ public class AuthService {
             );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            log.info("User logged in successfully: {}", request.username());
         } catch (BadCredentialsException e) {
+            log.warn("Login failed for user: {}", request.username());
             throw new InvalidCredentialsException("Wrong username or password");
         }
     }
 
     public void logout() {
+        log.info("User logged out");
         SecurityContextHolder.clearContext();
     }
 

@@ -2,6 +2,7 @@ package org.example.filestorage.service;
 
 import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.filestorage.exception.InvalidResourceException;
 import org.example.filestorage.mapper.ResourceMapper;
 import org.example.filestorage.model.dto.DownloadResult;
@@ -21,6 +22,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class MinioStorageService implements StorageService {
 
@@ -46,6 +48,7 @@ public class MinioStorageService implements StorageService {
 
         long size = minioRepository.getFileSize(fullPath);
 
+        log.debug("Getting resource info for path: {} (user: {})", decodedPath, userId);
         return new Resource(parentPath, resourceName, size, ResourceType.FILE);
     }
 
@@ -58,6 +61,7 @@ public class MinioStorageService implements StorageService {
         validator.validateNotExistsInBucket(fullPath, decodedPath);
 
         deleteRecursively(fullPath);
+        log.info("Deleting resource: {} (user: {})", decodedPath, userId);
     }
 
     @Override
@@ -73,6 +77,7 @@ public class MinioStorageService implements StorageService {
             return new DownloadResult(resourceName + ".zip", buildZipStream(fullPath));
         }
 
+        log.info("Downloading resource: {} (user: {})", decodedPath, userId);
         return new DownloadResult(resourceName, buildFileStream(fullPath));
     }
 
@@ -99,6 +104,7 @@ public class MinioStorageService implements StorageService {
         minioRepository.copyObject(fullFrom, fullTo);
         minioRepository.removeObject(fullFrom);
 
+        log.info("Moving resource from: {} to: {} (user: {})", decodedFrom, decodedTo, userId);
         return new Resource(targetPath, targetName, minioRepository.getFileSize(fullTo), ResourceType.FILE);
     }
 
@@ -109,11 +115,14 @@ public class MinioStorageService implements StorageService {
 
         String fullPath = pathService.normalizePathForUser(decodedPath, userId);
 
+        log.debug("Searching resources with query: {} (user: {})", decodedPath, userId);
+
         List<Resource> resources = new ArrayList<>();
         for (Item item : minioRepository.listObjects(fullPath, true)) {
             resources.add(mapper.mapItemToResource(item, userId));
         }
 
+        log.debug("Search found {} results", resources.size());
         return resources;
     }
 
@@ -123,12 +132,14 @@ public class MinioStorageService implements StorageService {
         validator.partialValidatePath(decodedPath);
 
         if (files == null || files.isEmpty()) {
+            log.warn("Upload attempted with no files by user: {}", userId);
             throw new InvalidResourceException("No files provided for upload");
         }
 
         String folderPath = pathService.ensureTrailingSlash(decodedPath);
         String fullFolderPath = pathService.normalizePathForUser(folderPath, userId);
 
+        log.info("Uploading {} files to path: {} (user: {})", files.size(), folderPath, userId);
         List<Resource> resources = new ArrayList<>();
 
         for (MultipartFile file : files) {
@@ -141,6 +152,7 @@ public class MinioStorageService implements StorageService {
 
             minioRepository.upload(fullPath, file);
 
+            log.debug("Uploaded file: {}", fileName);
             resources.add(new Resource(folderPath, fileName, file.getSize(), ResourceType.FILE));
         }
 
@@ -165,6 +177,7 @@ public class MinioStorageService implements StorageService {
             validator.validateNotExistsInBucket(fullParentPath, parentPath);
         }
 
+        log.info("Creating directory: {} (user: {})", decodedPath, userId);
         minioRepository.createDirectory(fullPath);
 
         return new Resource(parentPath, directoryName, null, ResourceType.DIRECTORY);
@@ -180,6 +193,7 @@ public class MinioStorageService implements StorageService {
 
         validator.validateNotExistsInBucket(fullPath, decodedPath);
 
+        log.debug("Getting directory content for path: {} (user: {})", decodedPath, userId);
         List<Item> items = minioRepository.listObjects(fullPath, false);
 
         return items.stream()
@@ -191,6 +205,7 @@ public class MinioStorageService implements StorageService {
     private void deleteRecursively(String fullPath) {
         List<Item> items = minioRepository.listObjects(fullPath, true);
 
+        log.debug("Deleting {} objects recursively from: {}", items.size(), fullPath);
         for (Item item : items) {
             minioRepository.removeObject(item.objectName());
         }
@@ -211,6 +226,7 @@ public class MinioStorageService implements StorageService {
             try (ZipOutputStream zipOut = new ZipOutputStream(outputStream)) {
                 List<Item> items = minioRepository.listObjects(fullPath, true);
 
+                log.debug("Zipping {} items from directory: {}", items.size(), fullPath);
                 for (Item item : items) {
                     String objectName = item.objectName();
                     String relativePath = objectName.substring(fullPath.length());
@@ -235,6 +251,7 @@ public class MinioStorageService implements StorageService {
     private void moveDirectory(String from, String to) {
         List<Item> items = minioRepository.listObjects(from, true);
 
+        log.debug("Moving directory from: {} to: {}, containing {} items", from, to, items.size());
         for (Item item : items) {
             String objectName = item.objectName();
             String relativePath = objectName.substring(from.length());
