@@ -56,11 +56,11 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(e.getMessage()));
     }
 
-//    @ExceptionHandler(Exception.class)
-//    public ResponseEntity<ErrorResponse> handleInternalException() {
-//        return ResponseEntity
-//                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                .body(new ErrorResponse("Internal server error..."));
-//    }
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleInternalException() {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse("Internal server error..."));
+    }
 
 }
