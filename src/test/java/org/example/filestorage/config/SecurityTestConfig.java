@@ -8,19 +8,12 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import static org.mockito.Mockito.mock;
-
 @TestConfiguration
 public class SecurityTestConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager() {
-        return mock(AuthenticationManager.class);
     }
 
     @Bean

@@ -11,7 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.session.data.redis.RedisIndexedSessionRepository;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -39,6 +42,15 @@ public class AuthServiceTest {
 
     @Autowired
     private AuthService authService;
+
+    @MockitoBean
+    private RedisConnectionFactory factory;
+
+    @MockitoBean
+    private RedisTemplate<?, ?> template;
+
+    @MockitoBean
+    private RedisIndexedSessionRepository repository;
 
     @MockitoBean
     private AuthenticationManager authenticationManager;
