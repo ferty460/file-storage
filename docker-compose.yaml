@@ -39,9 +39,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:${REDIS_VERSION}
+    container_name: file-storage-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   minio_data:
+  redis-data:
 
 networks:
   file-storage:
