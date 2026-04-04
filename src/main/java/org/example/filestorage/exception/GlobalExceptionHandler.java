@@ -21,36 +21,8 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(errorMessage));
     }
 
-    @ExceptionHandler(UserAlreadyExistsException.class)
-    public ResponseEntity<ErrorResponse> handleUserAlreadyExistsException(UserAlreadyExistsException e) {
-        return ResponseEntity
-                .status(e.getStatus())
-                .body(new ErrorResponse(e.getMessage()));
-    }
-
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleBadCredentialsException(InvalidCredentialsException e) {
-        return ResponseEntity
-                .status(e.getStatus())
-                .body(new ErrorResponse(e.getMessage()));
-    }
-
-    @ExceptionHandler(InvalidResourceException.class)
-    public ResponseEntity<ErrorResponse> handleBadResourcePathException(InvalidResourceException e) {
-        return ResponseEntity
-                .status(e.getStatus())
-                .body(new ErrorResponse(e.getMessage()));
-    }
-
-    @ExceptionHandler(ResourceAlreadyExistsException.class)
-    public ResponseEntity<ErrorResponse> handleResourceAlreadyExistsException(ResourceAlreadyExistsException e) {
-        return ResponseEntity
-                .status(e.getStatus())
-                .body(new ErrorResponse(e.getMessage()));
-    }
-
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException e) {
+    @ExceptionHandler(BaseFileStorageException.class)
+    public ResponseEntity<ErrorResponse> handleBaseException(BaseFileStorageException e) {
         return ResponseEntity
                 .status(e.getStatus())
                 .body(new ErrorResponse(e.getMessage()));

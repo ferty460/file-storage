@@ -1,4 +1,4 @@
-package org.example.filestorage.model.dto;
+package org.example.filestorage.model.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;

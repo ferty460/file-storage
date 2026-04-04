@@ -1,6 +1,6 @@
 package org.example.filestorage.service;
 
-import org.example.filestorage.model.dto.DownloadResult;
+import org.example.filestorage.model.dto.response.DownloadResult;
 import org.example.filestorage.model.dto.Resource;
 import org.springframework.web.multipart.MultipartFile;
 

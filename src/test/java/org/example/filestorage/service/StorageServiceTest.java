@@ -4,7 +4,7 @@ import io.minio.*;
 import org.example.filestorage.exception.InvalidResourceException;
 import org.example.filestorage.exception.ResourceNotFoundException;
 import org.example.filestorage.mapper.ResourceMapper;
-import org.example.filestorage.model.dto.DownloadResult;
+import org.example.filestorage.model.dto.response.DownloadResult;
 import org.example.filestorage.model.dto.Resource;
 import org.example.filestorage.model.dto.ResourceType;
 import org.example.filestorage.repository.MinioRepository;

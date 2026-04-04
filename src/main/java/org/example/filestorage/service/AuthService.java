@@ -53,7 +53,6 @@ public class AuthService {
     }
 
     public void logout() {
-        log.info("User logged out");
         SecurityContextHolder.clearContext();
     }
 

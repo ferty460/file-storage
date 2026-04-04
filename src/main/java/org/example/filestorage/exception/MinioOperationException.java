@@ -1,16 +1,11 @@
 package org.example.filestorage.exception;
 
-import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
-@Getter
-public class MinioOperationException extends RuntimeException {
-
-    private final HttpStatus status;
+public class MinioOperationException extends BaseFileStorageException {
 
     public MinioOperationException(String message) {
-        super(message);
-        this.status = HttpStatus.INTERNAL_SERVER_ERROR;
+        super(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
 }

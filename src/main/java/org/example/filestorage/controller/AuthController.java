@@ -74,7 +74,6 @@ public class AuthController {
         authService.register(request);
         authService.login(request);
 
-        log.info("User registered and logged in: {}", request.username());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(new SuccessAuthResponse(request.username()));
@@ -119,7 +118,6 @@ public class AuthController {
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequest request) {
         authService.login(request);
 
-        log.info("User logged in: {}", request.username());
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(new SuccessAuthResponse(request.username()));

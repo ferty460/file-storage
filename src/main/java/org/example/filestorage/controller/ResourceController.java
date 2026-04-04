@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.filestorage.model.User;
 import org.example.filestorage.model.UserPrincipal;
-import org.example.filestorage.model.dto.DownloadResult;
+import org.example.filestorage.model.dto.response.DownloadResult;
 import org.example.filestorage.model.dto.Resource;
 import org.example.filestorage.model.dto.response.ErrorResponse;
 import org.example.filestorage.service.StorageService;
