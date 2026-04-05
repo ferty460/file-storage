@@ -3,6 +3,7 @@ package org.example.filestorage.validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.filestorage.exception.InvalidResourceException;
+import org.example.filestorage.exception.ResourceAlreadyExistsException;
 import org.example.filestorage.exception.ResourceNotFoundException;
 import org.example.filestorage.repository.MinioRepository;
 import org.example.filestorage.service.ResourcePathService;
@@ -61,7 +62,7 @@ public class ResourceValidator {
     public void validateExistsInBucket(String fullPath, String originalPath) {
         if (minioRepository.exists(fullPath)) {
             log.warn("Resource already exists: {}", originalPath);
-            throw new ResourceNotFoundException("Resource already exist: " + originalPath);
+            throw new ResourceAlreadyExistsException("Resource already exist: " + originalPath);
         }
     }
 
