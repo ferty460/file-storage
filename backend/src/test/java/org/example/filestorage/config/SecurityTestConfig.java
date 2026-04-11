@@ -2,6 +2,7 @@ package org.example.filestorage.config;
 
 import org.example.filestorage.repository.UserRepository;
 import org.example.filestorage.service.AuthService;
+import org.example.filestorage.service.MinioStorageService;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,9 +21,10 @@ public class SecurityTestConfig {
     public AuthService authService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager
+            AuthenticationManager authenticationManager,
+            MinioStorageService minioStorageService
     ) {
-        return new AuthService(userRepository, passwordEncoder, authenticationManager);
+        return new AuthService(userRepository, passwordEncoder, authenticationManager, minioStorageService);
     }
 
 }

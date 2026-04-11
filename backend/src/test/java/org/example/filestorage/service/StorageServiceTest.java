@@ -2,6 +2,7 @@ package org.example.filestorage.service;
 
 import io.minio.*;
 import org.example.filestorage.exception.InvalidResourceException;
+import org.example.filestorage.exception.ResourceAlreadyExistsException;
 import org.example.filestorage.exception.ResourceNotFoundException;
 import org.example.filestorage.mapper.ResourceMapper;
 import org.example.filestorage.model.dto.response.DownloadResult;
@@ -144,7 +145,7 @@ class StorageServiceTest {
         MockMultipartFile file = createMockFile("test.txt", "New content");
 
         assertThatThrownBy(() -> storageService.uploadResource(path, List.of(file), TEST_USER_ID))
-                .isInstanceOf(ResourceNotFoundException.class)
+                .isInstanceOf(ResourceAlreadyExistsException.class)
                 .hasMessageContaining("already exist");
     }
 
@@ -197,7 +198,7 @@ class StorageServiceTest {
 
         assertThat(contents).hasSize(3);
         assertThat(contents).extracting(Resource::getName)
-                .containsExactlyInAnyOrder("unga", "bunga", "README.md");
+                .containsExactlyInAnyOrder("unga/", "bunga/", "README.md");
     }
 
     @Test
@@ -220,7 +221,7 @@ class StorageServiceTest {
         storageService.createDirectory(path, TEST_USER_ID);
 
         assertThatThrownBy(() -> storageService.createDirectory(path, TEST_USER_ID))
-                .isInstanceOf(ResourceNotFoundException.class)
+                .isInstanceOf(ResourceAlreadyExistsException.class)
                 .hasMessage("Resource already exist: " + path);
     }
 
