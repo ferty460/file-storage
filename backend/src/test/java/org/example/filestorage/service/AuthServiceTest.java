@@ -55,6 +55,9 @@ public class AuthServiceTest {
     @MockitoBean
     private AuthenticationManager authenticationManager;
 
+    @MockitoBean
+    private MinioStorageService storageService;
+
     @BeforeAll
     static void init() {
         postgres.start();

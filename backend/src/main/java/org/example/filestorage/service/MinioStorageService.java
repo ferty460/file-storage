@@ -88,23 +88,31 @@ public class MinioStorageService implements StorageService {
         validator.fullValidatePath(decodedFrom);
         validator.fullValidatePath(decodedTo);
 
-        String fullFrom = pathService.normalizePathForUser(decodedFrom, userId);
-        String fullTo = pathService.normalizePathForUser(decodedTo, userId);
-        String targetPath = pathService.extractParentPath(to);
-        String targetName = pathService.extractResourceName(to);
+        String decodedFromWithSlash = pathService.ensureTrailingSlash(decodedFrom);
+        String decodedToWithSlash = pathService.ensureTrailingSlash(decodedTo);
+        boolean isFolder = minioRepository.exists(pathService.normalizePathForUser(decodedFromWithSlash, userId));
+
+        String fromPath = isFolder ? decodedFromWithSlash : decodedFrom;
+        String toPath = isFolder ? decodedToWithSlash : decodedTo;
+        String fullFrom = pathService.normalizePathForUser(fromPath, userId);
+        String fullTo = pathService.normalizePathForUser(toPath, userId);
+        String targetPath = pathService.extractParentPath(decodedTo);
+        String targetName = pathService.extractResourceName(decodedTo);
 
         validator.validateMove(fullFrom, fullTo, decodedFrom, decodedTo);
 
-        if (pathService.isDirectoryPath(decodedFrom)) {
+        if (isFolder) {
             moveDirectory(fullFrom, fullTo);
+            minioRepository.removeObject(fullFrom);
 
+            log.info("Moving directory from: {} to: {} (user: {})", decodedFrom, decodedTo, userId);
             return new Resource(targetPath, targetName, null, ResourceType.DIRECTORY);
         }
 
         minioRepository.copyObject(fullFrom, fullTo);
         minioRepository.removeObject(fullFrom);
 
-        log.info("Moving resource from: {} to: {} (user: {})", decodedFrom, decodedTo, userId);
+        log.info("Moving file from: {} to: {} (user: {})", decodedFrom, decodedTo, userId);
         return new Resource(targetPath, targetName, minioRepository.getFileSize(fullTo), ResourceType.FILE);
     }
 
@@ -129,14 +137,14 @@ public class MinioStorageService implements StorageService {
     @Override
     public List<Resource> uploadResource(String path, List<MultipartFile> files, Long userId) {
         String decodedPath = pathService.decodePath(path);
-        validator.partialValidatePath(decodedPath);
+        String folderPath = pathService.ensureTrailingSlash(decodedPath);
+        validator.partialValidatePath(folderPath);
 
         if (files == null || files.isEmpty()) {
             log.warn("Upload attempted with no files by user: {}", userId);
             throw new InvalidResourceException("No files provided for upload");
         }
 
-        String folderPath = pathService.ensureTrailingSlash(decodedPath);
         String fullFolderPath = pathService.normalizePathForUser(folderPath, userId);
 
         log.info("Uploading {} files to path: {} (user: {})", files.size(), folderPath, userId);
@@ -162,14 +170,14 @@ public class MinioStorageService implements StorageService {
     @Override
     public Resource createDirectory(String path, Long userId) {
         String decodedPath = pathService.decodePath(path);
+        String pathWithSlash = pathService.ensureTrailingSlash(decodedPath);
         validator.fullValidatePath(decodedPath);
 
-        String pathWithSlash = pathService.ensureTrailingSlash(decodedPath);
         String fullPath = pathService.normalizePathForUser(pathWithSlash, userId);
         String directoryName = pathService.extractResourceName(pathWithSlash);
         String parentPath = pathService.extractParentPath(pathWithSlash);
 
-        validator.validateExistsInBucket(fullPath, decodedPath);
+        validator.validateExistsInBucket(fullPath, pathWithSlash);
 
         if (!parentPath.isEmpty() && !parentPath.equals("/")) {
             String fullParentPath = pathService.normalizePathForUser(parentPath, userId);
@@ -177,7 +185,7 @@ public class MinioStorageService implements StorageService {
             validator.validateNotExistsInBucket(fullParentPath, parentPath);
         }
 
-        log.info("Creating directory: {} (user: {})", decodedPath, userId);
+        log.info("Creating directory: {} (user: {})", pathWithSlash, userId);
         minioRepository.createDirectory(fullPath);
 
         return new Resource(parentPath, directoryName, null, ResourceType.DIRECTORY);
@@ -186,14 +194,14 @@ public class MinioStorageService implements StorageService {
     @Override
     public List<Resource> getDirectoryContent(String path, Long userId) {
         String decodedPath = pathService.decodePath(path);
-        validator.fullValidatePath(decodedPath);
-
         String pathWithSlash = pathService.ensureTrailingSlash(decodedPath);
+        validator.fullValidatePath(pathWithSlash);
+
         String fullPath = pathService.normalizePathForUser(pathWithSlash, userId);
 
-        validator.validateNotExistsInBucket(fullPath, decodedPath);
+        validator.validateNotExistsInBucket(fullPath, pathWithSlash);
 
-        log.debug("Getting directory content for path: {} (user: {})", decodedPath, userId);
+        log.debug("Getting directory content for path: {} (user: {})", pathWithSlash, userId);
         List<Item> items = minioRepository.listObjects(fullPath, false);
 
         return items.stream()
@@ -209,8 +217,6 @@ public class MinioStorageService implements StorageService {
         for (Item item : items) {
             minioRepository.removeObject(item.objectName());
         }
-
-        minioRepository.removeObject(fullPath);
     }
 
     private StreamingResponseBody buildFileStream(String fullPath) {
@@ -252,14 +258,24 @@ public class MinioStorageService implements StorageService {
         List<Item> items = minioRepository.listObjects(from, true);
 
         log.debug("Moving directory from: {} to: {}, containing {} items", from, to, items.size());
+
         for (Item item : items) {
             String objectName = item.objectName();
+
+            if (objectName.equals(from)) {
+                continue;
+            }
+
             String relativePath = objectName.substring(from.length());
             String newPath = to + relativePath;
 
             minioRepository.copyObject(objectName, newPath);
             minioRepository.removeObject(objectName);
         }
+
+        minioRepository.removeObject(from);
+
+        log.debug("Directory moved successfully, old directory removed: {}", from);
     }
 
 }

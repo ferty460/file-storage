@@ -54,14 +54,14 @@ public class ResourceValidator {
 
     public void validateNotExistsInBucket(String fullPath, String originalPath) {
         if (!minioRepository.exists(fullPath)) {
-            log.warn("Resource not found: {}", originalPath);
+            log.warn("Resource not found: {}", fullPath);
             throw new ResourceNotFoundException("Resource does not exist: " + originalPath);
         }
     }
 
     public void validateExistsInBucket(String fullPath, String originalPath) {
         if (minioRepository.exists(fullPath)) {
-            log.warn("Resource already exists: {}", originalPath);
+            log.warn("Resource already exists: {}", fullPath);
             throw new ResourceAlreadyExistsException("Resource already exist: " + originalPath);
         }
     }
@@ -80,6 +80,10 @@ public class ResourceValidator {
         if (!fromDir && toDir) {
             log.warn("Move validation failed: cannot move file to directory path - from: {}, to: {}", userFrom, userTo);
             throw new InvalidResourceException("Cannot move file to directory path");
+        }
+        if (fromDir && fullTo.startsWith(fullFrom)) {
+            log.warn("Move validation failed: cannot move directory into itself - from: {}, to: {}", userFrom, userTo);
+            throw new InvalidResourceException("Cannot move directory into itself");
         }
     }
 

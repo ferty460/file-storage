@@ -51,10 +51,6 @@ public class ResourcePathService {
     }
 
     public String ensureTrailingSlash(String path) {
-        if (path == null || path.isEmpty()) {
-            return "";
-        }
-
         return path.endsWith("/") ? path : path + "/";
     }
 

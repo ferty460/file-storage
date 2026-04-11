@@ -121,7 +121,6 @@ public class MinioRepository {
 
     public void upload(String path, MultipartFile file) {
         try (InputStream inputStream = file.getInputStream()) {
-            log.info("Uploading file to path: {}, size: {} bytes", path, file.getSize());
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucketName)
                     .object(path)
@@ -136,7 +135,6 @@ public class MinioRepository {
 
     public void createDirectory(String path) {
         try {
-            log.info("Creating directory: {}", path);
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucketName)
                     .object(path)

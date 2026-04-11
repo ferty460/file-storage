@@ -23,6 +23,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final MinioStorageService storageService;
 
     public void register(AuthRequest request) {
         if (userRepository.existsByName(request.username())) {
@@ -34,7 +35,9 @@ public class AuthService {
         user.setName(request.username());
         user.setPassword(passwordEncoder.encode(request.password()));
 
-        userRepository.save(user);
+        User saved = userRepository.save(user);
+        storageService.createDirectory("/", saved.getId());
+
         log.info("User registered successfully: {}", request.username());
     }
 

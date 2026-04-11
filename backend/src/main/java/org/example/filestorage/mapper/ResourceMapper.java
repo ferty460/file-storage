@@ -24,9 +24,10 @@ public class ResourceMapper {
 
         if (isDirectory) {
             String folderName = pathService.extractResourceName(relativePath);
+            String validFolderName = pathService.ensureTrailingSlash(folderName);
             String parentPath = pathService.extractParentPath(relativePath);
 
-            return new Resource(parentPath, folderName, null, ResourceType.DIRECTORY);
+            return new Resource(parentPath, validFolderName, null, ResourceType.DIRECTORY);
         } else {
             String fileName = pathService.extractResourceName(relativePath);
             String parentPath = pathService.extractParentPath(relativePath);

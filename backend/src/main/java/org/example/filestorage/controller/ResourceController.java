@@ -349,7 +349,7 @@ public class ResourceController {
     })
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<List<Resource>> upload(
-            @RequestParam("file") List<MultipartFile> files,
+            @RequestParam("object") List<MultipartFile> files,
             @RequestParam(required = false, defaultValue = "") String path,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
@@ -403,7 +403,6 @@ public class ResourceController {
         User user = principal.user();
         storageService.deleteResource(path, user.getId());
 
-        log.info("Deleted resource: {} by user: {}", path, principal.getUsername());
         return ResponseEntity.noContent().build();
     }
 
